@@ -45,7 +45,7 @@ class Resource(models.Model):
     media_type = models.ForeignKey(MediaType, null=True)
     pub_date = models.DateField(blank=True, null=True)
     pages = models.IntegerField(blank=True, null=True)
-    cover_image = models.ImageField(upload_to='resources', blank=True)
+    cover_image = models.ImageField(upload_to='amazon_resources', blank=True)
     recommended = models.BooleanField(default=False)
     
     class Meta:

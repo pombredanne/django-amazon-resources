@@ -12,11 +12,9 @@ from django.template import RequestContext
 from django.template.defaultfilters import slugify
 
 from amazon_resources.forms import ResourceForm
-from amazon_resources.libs.amazon import AmazonAPI, asin_from_url
-from amazon_resources.libs.image_resize import image_resize
+from amazon_resources.libs.image_resize import resize
 from amazon_resources.models import ResourceCategory, MediaType, Resource
 
-amazon_client = AmazonAPI(settings.AWS_KEY, settings.AWS_SECRET)
 
 THUMB_WIDTH = getattr(settings, 'THUMB_WIDTH', 200)
 THUMB_HEIGHT = getattr(settings, 'THUMB_WIDTH', None)
@@ -39,23 +37,25 @@ class ResourceAdmin(admin.ModelAdmin):
         form = ResourceForm(request.POST or None)
         if request.method == 'POST':
             if form.is_valid():
-                url = form.cleaned_data['url']
-                asin = asin_from_url(url)
-                amazon_item = amazon_client.item_lookup(asin)
+                api_resource = form.cleaned_data['resource']
+                
                 media_type, _ = MediaType.objects.get_or_create(
-                    title=amazon_item['productgroup'])
-                resource = Resource.objects.create(
-                    asin=asin,
-                    title=amazon_item['title'],
-                    author=amazon_item['author'],
-                    media_type=media_type,
-                    pub_date=amazon_item['publicationdate'],
-                    pages=amazon_item['numberofpages'] or 0,
+                    title=api_resource['productgroup']
                 )
                 
-                img_url = amazon_item['image']
+                resource = Resource.objects.create(
+                    asin=api_resource['asin'],
+                    title=api_resource['title'],
+                    author=api_resource['author'],
+                    media_type=media_type,
+                    pub_date=api_resource['publicationdate'],
+                    pages=api_resource['numberofpages'] or 0,
+                )
+                
+                img_url = api_resource['image']
                 if img_url:
                     img_name, extension = img_url.rsplit('.', 1)
+                    
                     # download the image and store it in memory
                     image_data, _ = urllib.urlretrieve(img_url)
                     
@@ -65,18 +65,20 @@ class ResourceAdmin(admin.ModelAdmin):
                     )
                     
                     # resize the newly created image
-                    image_resize(
-                        resource.cover_image.path,
-                        resource.cover_image.path,
+                    resize(
+                        resource.cover_image.name,
+                        resource.cover_image.name,
                         THUMB_WIDTH,
-                        THUMB_HEIGHT)
+                        THUMB_HEIGHT
+                    )
                     
                     resource.save()
-                            
+                
                 return HttpResponseRedirect(reverse("admin:amazon_resources_resource_change", args=[resource.pk]))
-        return render_to_response('admin/amazon_resources/add_amazon_resource.html',
-                {'title': 'Add a resource', 'form': form},
-                context_instance=RequestContext(request))
+        
+        return render_to_response('admin/amazon_resources/add_amazon_resource.html', {
+            'title': 'Add a resource', 'form': form
+        }, context_instance=RequestContext(request))
 
 
 class ResourceCategoryAdmin(admin.ModelAdmin):

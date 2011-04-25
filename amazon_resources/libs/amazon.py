@@ -9,11 +9,15 @@ from lxml import objectify
 from time import strftime, gmtime
 from urllib import quote
 
+
 AMAZON_RE = re.compile('http://www.amazon.+?/(?P<ASIN>[a-zA-Z0-9]{10,11})/.+?')
+
+
 def asin_from_url(url):
     match = AMAZON_RE.match(url)
     if match:
         return match.groupdict()['ASIN']
+
 
 class AmazonAPI(object):
     version = '2009-10-01'
@@ -46,8 +50,7 @@ class AmazonAPI(object):
         msg = 'GET\n%s\n%s\n%s' % (self.host, self.path, args.encode('utf-8'))
         signature = quote(b64encode(hmac.new(self.secret_key, msg, sha256).digest()))
         
-        url = 'http://%s%s?%s&Signature=%s' % (self.host, self.path, args, signature)
-        return url
+        return 'http://%s%s?%s&Signature=%s' % (self.host, self.path, args, signature)
     
     def raw_api_call(self, url, max_timeout=4):
         sock = httplib2.Http(timeout=max_timeout)
@@ -58,7 +61,7 @@ class AmazonAPI(object):
             headers, response = sock.request(url)
         except socket.timeout:
             raise ValueError('Socket timed out')
-                
+        
         status = int(headers.pop('status', 200))
         if status != 200:
             raise ValueError('Returned status: %s' % (status))
